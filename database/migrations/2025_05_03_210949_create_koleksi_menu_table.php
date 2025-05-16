@@ -10,8 +10,8 @@ class CreateKoleksiMenuTable extends Migration
     {
         Schema::create('koleksi_menu', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('koleksi_id')->constrained()->onDelete('cascade');  // Koleksi yang berisi menu
-            $table->foreignId('menu_id')->constrained()->onDelete('cascade');  // Menu yang ada dalam koleksi
+            $table->foreignId('koleksi_id')->constrained()->onDelete('cascade');
+            $table->foreignId('menu_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

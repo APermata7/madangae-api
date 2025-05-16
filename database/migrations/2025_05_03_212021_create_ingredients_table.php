@@ -10,7 +10,8 @@ class CreateIngredientsTable extends Migration
     {
         Schema::create('ingredients', function (Blueprint $table) {
             $table->id();
-            $table->string('name');  // Nama bahan
+            $table->foreignId('menu_id')->constrained()->onDelete('cascade'); // relasi ke menu
+            $table->string('name'); // nama bahan
             $table->timestamps();
         });
     }

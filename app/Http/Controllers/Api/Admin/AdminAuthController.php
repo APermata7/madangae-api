@@ -16,15 +16,22 @@ class AdminAuthController extends Controller
             'password' => 'required',
         ]);
 
-        // Login dengan guard 'admin'
         $admin = Auth::guard('admin')->attempt([
             'email'    => $request->email,
             'password' => $request->password
         ]);
 
+        if (Auth::guard('admin')->check()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Already logged in'
+            ], 400);
+        }
+
         if ($admin) {
             $admin = Auth::guard('admin')->user();
             return response()->json([
+                'status' => 'success',
                 'message' => 'Login successful',
                 'user' => [
                     'id'    => $admin->id,
@@ -35,10 +42,13 @@ class AdminAuthController extends Controller
             ], 200);
         }
 
-        return response()->json(['message' => 'Invalid credentials'], 401);
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Invalid credentials'
+        ], 401);
     }
 
-    // Logout untuk admin
+
     public function logout(Request $request)
     {
         Auth::guard('admin')->logout();

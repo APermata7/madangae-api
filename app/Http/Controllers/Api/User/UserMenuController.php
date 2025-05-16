@@ -79,4 +79,5 @@ class UserMenuController extends Controller
         $menus = Menu::where('kategori', $kategori)->get();
         return response()->json($menus);
     }
+    
 }

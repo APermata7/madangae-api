@@ -12,14 +12,31 @@ class Menu extends Model
     protected $fillable = [
         'name',
         'description',
-        'ingredients',
-        'instructions',
-        'image'
+        'image',
+        'category_id'
     ];
 
-    // Relasi ke koleksi
+    // Relasi ke Favorite
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    // Relasi ke Ingredients
+    public function ingredients()
+    {
+        return $this->hasMany(Ingredient::class);
+    }
+
+    // Relasi ke Steps
+    public function steps()
+    {
+        return $this->hasMany(Step::class);
+    }
+
+    // Relasi ke Koleksi via Pivot Table
     public function koleksis()
     {
-        return $this->hasMany(Koleksi::class);
+        return $this->belongsToMany(Koleksi::class, 'koleksi_menu')->withTimestamps();
     }
 }

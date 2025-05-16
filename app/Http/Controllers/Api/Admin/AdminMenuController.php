@@ -4,21 +4,22 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Menu;
+use App\Models\Ingredient;
+use App\Models\Step; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class AdminMenuController extends Controller
 {
-    // Tampilkan semua menu
     public function index()
     {
-        $menus = Menu::all()->map(function ($menu) {
+        $menus = Menu::with(['ingredients', 'steps'])->get()->map(function ($menu) {
             return [
                 'id' => $menu->id,
                 'name' => $menu->name,
                 'description' => $menu->description,
                 'ingredients' => $menu->ingredients,
-                'instructions' => $menu->instructions,
+                'instructions' => $menu->steps,
                 'image_url' => $menu->image ? asset('storage/' . $menu->image) : null,
                 'created_at' => $menu->created_at,
                 'updated_at' => $menu->updated_at,
@@ -31,24 +32,30 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    // Tambah menu baru
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:255',
-            'ingredients' => 'required|string',
-            'instructions' => 'required|string',
+            'ingredients' => 'required|array',  // Mengharuskan ingredients dalam bentuk array
+            'instructions' => 'required|array',  // Mengharuskan instructions dalam bentuk array
             'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
 
-        // Upload gambar kalau ada
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('menu-images', 'public');
             $validated['image'] = $imagePath;
         }
 
         $menu = Menu::create($validated);
+
+        foreach ($request->ingredients as $ingredient) {
+            $menu->ingredients()->create(['name' => $ingredient]);
+        }
+
+        foreach ($request->instructions as $instruction) {
+            $menu->steps()->create(['step' => $instruction]);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -57,10 +64,9 @@ class AdminMenuController extends Controller
         ], 201);
     }
 
-    // Tampilkan detail menu per ID
     public function show($id)
     {
-        $menu = Menu::findOrFail($id);
+        $menu = Menu::with(['ingredients', 'steps'])->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
@@ -69,7 +75,7 @@ class AdminMenuController extends Controller
                 'name' => $menu->name,
                 'description' => $menu->description,
                 'ingredients' => $menu->ingredients,
-                'instructions' => $menu->instructions,
+                'instructions' => $menu->steps,
                 'image_url' => $menu->image ? asset('storage/' . $menu->image) : null,
                 'created_at' => $menu->created_at,
                 'updated_at' => $menu->updated_at,
@@ -77,7 +83,6 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    // Update menu
     public function update(Request $request, $id)
     {
         $menu = Menu::findOrFail($id);
@@ -85,14 +90,12 @@ class AdminMenuController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:255',
-            'ingredients' => 'required|string',
-            'instructions' => 'required|string',
+            'ingredients' => 'required|array',
+            'instructions' => 'required|array',
             'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
 
-        // Upload gambar baru kalau ada
         if ($request->hasFile('image')) {
-            // Hapus gambar lama kalau ada
             if ($menu->image && Storage::disk('public')->exists($menu->image)) {
                 Storage::disk('public')->delete($menu->image);
             }
@@ -103,6 +106,17 @@ class AdminMenuController extends Controller
 
         $menu->update($validated);
 
+       
+        $menu->ingredients()->delete(); 
+        foreach ($request->ingredients as $ingredient) {
+            $menu->ingredients()->create(['name' => $ingredient]);
+        }
+       
+        $menu->steps()->delete(); 
+        foreach ($request->instructions as $instruction) {
+            $menu->steps()->create(['step' => $instruction]);
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Menu updated successfully',
@@ -110,15 +124,16 @@ class AdminMenuController extends Controller
         ]);
     }
 
-    // Hapus menu
     public function destroy($id)
     {
         $menu = Menu::findOrFail($id);
 
-        // Hapus gambar kalau ada
         if ($menu->image && Storage::disk('public')->exists($menu->image)) {
             Storage::disk('public')->delete($menu->image);
         }
+
+        $menu->ingredients()->delete();
+        $menu->steps()->delete();
 
         $menu->delete();
 

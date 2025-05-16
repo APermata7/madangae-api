@@ -17,17 +17,20 @@ class AdminHomeController extends Controller
         ], 200);
     }
 
-    // Menampilkan berita terbaru dari database
     public function latestNews()
     {
-        $news = News::latest()->take(5)->get(); 
+        $news = News::latest()->take(5)->get();
 
         if ($news->isEmpty()) {
             return response()->json([
+                'status' => 'error',
                 'message' => 'Tidak ada berita terbaru.',
             ], 404);
         }
 
-        return response()->json($news, 200);
+        return response()->json([
+            'status' => 'success',
+            'data' => $news
+        ], 200);
     }
 }

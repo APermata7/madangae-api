@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Database\Eloquent\Model;
 
 class AdminProfileController extends Controller
 {
@@ -34,6 +33,7 @@ class AdminProfileController extends Controller
     {
         $admin = Auth::guard('admin')->user();
 
+        // Validasi input
         $validator = Validator::make($request->all(), [
             'name'     => 'nullable|string|max:255',
             'email'    => 'nullable|email|unique:admins,email,' . $admin->id,
@@ -47,7 +47,7 @@ class AdminProfileController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        
+
         if (!$admin) {
             return response()->json([
                 'status' => 'error',
@@ -64,14 +64,12 @@ class AdminProfileController extends Controller
             $admin->password = Hash::make($request->password);
         }
 
-        // Update avatar
+        // Update avatar jika ada
         if ($request->hasFile('avatar')) {
-            // Hapus avatar lama jika ada
             if ($admin->avatar && Storage::disk('public')->exists($admin->avatar)) {
                 Storage::disk('public')->delete($admin->avatar);
             }
 
-            // Simpan avatar baru
             $path = $request->file('avatar')->store('avatars', 'public');
             $admin->avatar = $path;
         }

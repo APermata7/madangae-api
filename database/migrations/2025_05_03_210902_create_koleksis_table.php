@@ -10,7 +10,8 @@ class CreateKoleksisTable extends Migration
     {
         Schema::create('koleksis', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');  // User yang memiliki koleksi
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('nama_koleksi'); // nama folder / nama koleksi
             $table->timestamps();
         });
     }

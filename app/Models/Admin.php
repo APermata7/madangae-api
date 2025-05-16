@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Hash;
 
 class Admin extends Authenticatable
 {
@@ -18,4 +18,12 @@ class Admin extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    // Memastikan password terenkripsi
+    protected static function booted()
+    {
+        static::creating(function ($admin) {
+            $admin->password = Hash::make($admin->password);
+        });
+    }
 }

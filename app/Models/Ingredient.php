@@ -2,21 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Favorite extends Model
+class Ingredient extends Model
 {
-    protected $fillable = ['menu_id'];
+    use HasFactory;
+
+    protected $fillable = [
+        'menu_id',
+        'name',
+    ];
 
     // Relasi ke Menu
     public function menu()
     {
         return $this->belongsTo(Menu::class);
-    }
-
-    // Relasi ke User
-    public function user()
-    {
-        return $this->belongsTo(User::class);
     }
 }

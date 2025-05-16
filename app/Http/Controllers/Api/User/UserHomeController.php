@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\News; 
+use App\Models\News;
 
 class UserHomeController extends Controller
 {
     public function index()
     {
         return response()->json([
-            'greeting' => 'Halo, selamat datang di aplikasi kami!',
+            'greeting' => 'Halo, selamat datang di aplikasi Madangae',
             'info' => 'Nikmati berbagai menu dan fitur menarik.'
         ], 200);
     }
@@ -19,7 +19,7 @@ class UserHomeController extends Controller
     // Berita terbaru untuk user
     public function latestNews()
     {
-        $news = News::latest()->take(5)->get(); 
+        $news = News::latest()->take(5)->get();
 
         if ($news->isEmpty()) {
             return response()->json([
@@ -31,8 +31,8 @@ class UserHomeController extends Controller
         $formattedNews = $news->map(function ($newsItem) {
             return [
                 'title' => $newsItem->title,
-                'link'  => $newsItem->link,
-                'published_at' => $newsItem->published_at->toDateString() 
+                'content' => $newsItem->content,  // Menambahkan content jika ingin ditampilkan
+                'created_at' => $newsItem->created_at->toDateString(), // Menggunakan created_at sebagai waktu terbit
             ];
         });
 

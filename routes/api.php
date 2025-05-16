@@ -25,9 +25,8 @@ Route::prefix('admin')->middleware('auth:admin')->group(function () {
     Route::get('news', [AdminHomeController::class, 'latestNews']);
 });
 
-Route::prefix('admin/menu')->group(function () {
+Route::prefix('admin/menu')->middleware('auth:admin')->group(function () {
     Route::get('/', [AdminMenuController::class, 'index']);
-    Route::get('/menu/kategori/{kategori}', [UserMenuController::class, 'byKategori']);
     Route::post('/', [AdminMenuController::class, 'store']);
     Route::get('/{id}', [AdminMenuController::class, 'show']);
     Route::put('/{id}', [AdminMenuController::class, 'update']);
@@ -44,16 +43,16 @@ Route::prefix('admin')->middleware('auth:admin')->group(function () {
 Route::prefix('user')->group(function () {
     Route::post('login', [UserAuthController::class, 'login']);
     Route::post('register', [UserAuthController::class, 'register']);
-    Route::post('logout', [UserAuthController::class, 'logout'])->middleware('auth');
+    Route::post('logout', [UserAuthController::class, 'logout'])->middleware('auth:sanctum');
 });
 
-Route::prefix('user')->middleware('auth')->group(function () {
+Route::prefix('user')->middleware('auth:sanctum')->group(function () {
     Route::get('home', [UserHomeController::class, 'index']);
     Route::get('news', [UserHomeController::class, 'latestNews']);
 });
 
-Route::prefix('search')->middleware('auth')->group(function() {
-    Route::get('search', [UserSearchController::class, 'search']);
+Route::prefix('user/search')->middleware('auth:sanctum')->group(function() {
+    Route::get('/', [UserSearchController::class, 'search']);
 });
 
 Route::prefix('user/menu')->group(function () {
@@ -61,6 +60,7 @@ Route::prefix('user/menu')->group(function () {
     Route::get('/{id}', [UserMenuController::class, 'show']);
     Route::post('/{id}/favorite', [UserMenuController::class, 'addFavorite'])->middleware('auth:sanctum'); // atau auth lainnya
     Route::get('/favorites', [UserMenuController::class, 'favorites'])->middleware('auth:sanctum');
+    Route::get('/kategori/{kategori}', [UserMenuController::class, 'byKategori']);
 });
 
 Route::prefix('user/favorite')->middleware('auth:sanctum')->group(function () {
@@ -69,13 +69,13 @@ Route::prefix('user/favorite')->middleware('auth:sanctum')->group(function () {
     Route::delete('/{menu_id}', [UserFavoriteController::class, 'destroy']);
 });
 
-Route::prefix('koleksi')->middleware('auth')->group(function() {
-    Route::get('koleksi', [UserKoleksiController::class, 'index']);
-    Route::post('koleksi', [UserKoleksiController::class, 'store']);
-    Route::delete('koleksi/{id}', [UserKoleksiController::class, 'destroy']);
+Route::prefix('user/koleksi')->middleware('auth:sanctum')->group(function() {
+    Route::get('/', [UserKoleksiController::class, 'index']);
+    Route::post('/', [UserKoleksiController::class, 'store']);
+    Route::delete('{id}', [UserKoleksiController::class, 'destroy']);
 });
 
-Route::prefix('user')->middleware('auth')->group(function () {
+Route::prefix('user')->middleware('auth:sanctum')->group(function () {
     Route::get('profile', [UserProfileController::class, 'show']);
     Route::put('profile', [UserProfileController::class, 'update']);
 });

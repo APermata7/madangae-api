@@ -26,7 +26,8 @@ class UserProfileController extends Controller
             'name'  => 'nullable|string|max:255',
             'email' => 'nullable|email|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:6|confirmed',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', // max 2MB
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'bio' => 'nullable|string|max:1000', 
         ]);
 
         if ($validator->fails()) {

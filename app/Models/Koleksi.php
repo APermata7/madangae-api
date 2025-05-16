@@ -10,18 +10,16 @@ class Koleksi extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'menu_id'
+        'user_id', 'nama_koleksi'
     ];
 
-    // Relasi ke user
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // Relasi ke menu
-    public function menu()
+    public function menus()
     {
-        return $this->belongsTo(Menu::class);
+        return $this->belongsToMany(Menu::class, 'koleksi_menu')->withTimestamps();
     }
 }
