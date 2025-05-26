@@ -95,15 +95,20 @@ const userController = {
   // Get user profile
   getUserProfile: async (req, res) => {
     try {
-      // In a real app, userId would come from authenticated session (req.user.id)
-      const user = await User.findById(req.params.userId);
+      // Ensure you populate the nested 'menus' array within 'collections'
+      const user = await User.findById(req.params.id)
+        .populate({
+          path: 'collections.menus', // Path to the 'menus' array inside each collection
+          model: 'Menu'             // The model to use for population
+        })
+        .select('-password'); // Exclude password from the response
+
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
-      // Exclude password for security
-      const { password, ...userWithoutPassword } = user._doc;
-      res.status(200).json(userWithoutPassword);
+      res.status(200).json(user);
     } catch (error) {
+      console.error('Error fetching user profile with collections:', error);
       res.status(500).json({ message: 'Error fetching user profile', error: error.message });
     }
   },
@@ -149,7 +154,7 @@ const userController = {
 
       // If a name is provided, create a new named collection
       if (name) {
-        const newCollection = { name, menuItems: menuItemId ? [menuItemId] : [] };
+        const newCollection = { name, menus: menuItemId ? [menuItemId] : [] }; // <-- Corrected: menus
         user.collections.push(newCollection);
         await user.save();
         // Return the newly added collection or just a success message
@@ -162,17 +167,18 @@ const userController = {
 
         if (!defaultCollection) {
           // If "My Favorites" doesn't exist, create it
-          defaultCollection = { name: "My Favorites", menuItems: [] };
+          defaultCollection = { name: "My Favorites", menus: [] }; // <-- Corrected: menus
           user.collections.push(defaultCollection);
           // Find the newly added collection to push the item
           defaultCollection = user.collections[user.collections.length - 1];
         }
 
-        defaultCollection.menuItems = defaultCollection.menuItems || [];
+        // Ensure the 'menus' array exists, initialize if not (though Mongoose usually handles this)
+        defaultCollection.menus = defaultCollection.menus || []; // <-- Corrected: menus
 
         // Check if menu already exists in the collection
-        if (!defaultCollection.menuItems.includes(menuItemId)) {
-          defaultCollection.menuItems.push(menuItemId);
+        if (!defaultCollection.menus.includes(menuItemId)) { // <-- Corrected: menus
+          defaultCollection.menus.push(menuItemId); // <-- Corrected: menus
           await user.save();
           return res.status(200).json({ message: 'Menu item added to "My Favorites" collection' });
         } else {
@@ -254,14 +260,18 @@ const userController = {
       }
 
       // Check if the collection exists before attempting to remove
-      if (!user.collections.id(collectionId)) {
+      // The .id() method is fine for finding it, but .remove() on it is the issue.
+      const collectionToDelete = user.collections.id(collectionId);
+      if (!collectionToDelete) { // Check if it was actually found
         return res.status(404).json({ message: 'Collection not found' });
       }
 
-      user.collections.id(collectionId).remove(); // Remove the subdocument
-      await user.save();
+      // --- CRITICAL FIX: Use .pull() on the array to remove the subdocument by its _id ---
+      user.collections.pull(collectionId); // This removes the subdocument with the given _id
+      await user.save(); // Save the parent document after modification
       res.status(200).json({ message: 'Collection deleted successfully' });
     } catch (error) {
+      console.error('Error deleting collection:', error); // Keep logging the full error for future debugging
       res.status(500).json({ message: 'Error deleting collection', error: error.message });
     }
   },

@@ -3,12 +3,16 @@ const Menu = require('../models/menuModel');
 const User = require('../models/userModel'); // Needed for deletion cascade
 
 const menuController = {
-  // Get all menus (for user 'Menu' page and admin 'Menu Management')
   getAllMenus: async (req, res) => {
     try {
       const menus = await Menu.find({});
+      console.log('Menus fetched from DB for frontend:');
+      menus.forEach(menu => {
+          console.log(`  Menu Name: ${menu.name}, ID: ${menu._id}`);
+      });
       res.status(200).json(menus);
     } catch (error) {
+      console.error('Error fetching menus:', error);
       res.status(500).json({ message: 'Error fetching menus', error: error.message });
     }
   },
