@@ -18,6 +18,8 @@ router.post('/:userId/collections', userController.createCollection); // This ro
 // using the top-level /collections endpoint, you might revisit this.
 // The frontend currently uses POST /:userId/collections with a menuItemId.
 // Let's adjust createCollection in controller to handle either new collection or adding to default.
+//
+router.delete('/:userId/collections/:menuItemId', userController.removeMenuItemSimple);
 router.post('/:userId/collections/:collectionId/menus', userController.addMenuToCollection);
 router.delete('/:userId/collections/:collectionId', userController.deleteCollection);
 router.delete('/:userId/collections/:collectionId/menus/:menuId', userController.removeMenuFromCollection);

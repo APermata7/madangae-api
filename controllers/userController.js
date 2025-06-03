@@ -96,7 +96,7 @@ const userController = {
   getUserProfile: async (req, res) => {
     try {
       // Ensure you populate the nested 'menus' array within 'collections'
-      const user = await User.findById(req.params.id)
+      const user = await User.findById(req.params.userId) //update dari id -> userId
         .populate({
           path: 'collections.menus', // Path to the 'menus' array inside each collection
           model: 'Menu'             // The model to use for population
@@ -127,19 +127,96 @@ const userController = {
     }
   },
 
-  // Get user collections
+  /// Get user collections
   getUserCollections: async (req, res) => {
-    try {
-      // In a real app, userId would come from authenticated session (req.user.id)
-      const user = await User.findById(req.params.userId).populate('collections.menus'); // Populate menu details
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      res.status(200).json({collections: user.collections}); // Wrap in an object to match frontend expectation
-    } catch (error) {
-      res.status(500).json({ message: 'Error fetching collections', error: error.message });
+  try {
+    console.log('=== getUserCollections Clean ===');
+    console.log('UserID:', req.params.userId);
+    
+    // Get user WITHOUT populate first
+    const user = await User.findById(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
-  },
+
+    console.log('User found, collections count:', user.collections.length);
+    
+    const allMenuItems = [];
+    
+    for (let collection of user.collections) {
+      console.log(`Processing collection:`, {
+        collectionId: collection._id,
+        name: collection.name,
+        menusCount: collection.menus.length
+      });
+      
+      // Manual fetch each menu by ID
+      for (let menuId of collection.menus) {
+        console.log(`Fetching menu:`, menuId);
+        
+        try {
+          const menu = await Menu.findById(menuId);
+          
+          if (!menu) {
+            console.log(`Menu ${menuId} not found, skipping`);
+            continue;
+          }
+          
+          console.log(`Menu found:`, {
+            name: menu.name,
+            category: menu.category,
+            hasImage: !!menu.imageUrl,
+            hasDescription: !!menu.description
+          });
+          
+          // Transform menu data - NO PRICE
+          const transformedItem = {
+            _id: menu._id,
+            menuItemId: menu._id,
+            menuItemName: menu.name || 'Unknown Item',
+            menuItemDescription: menu.description || 'No description available.',
+            menuItemCategory: menu.category || 'N/A',
+            menuItemImage: menu.imageUrl || '',
+            rating: Number(menu.rating) || 0,
+            ingredients: menu.ingredients || [],
+            tutorial: menu.tutorial || []
+          };
+          
+          console.log(`Transformed:`, {
+            name: transformedItem.menuItemName,
+            category: transformedItem.menuItemCategory,
+            hasImage: !!transformedItem.menuItemImage,
+            ingredientsCount: transformedItem.ingredients.length,
+            tutorialSteps: transformedItem.tutorial.length
+          });
+          
+          allMenuItems.push(transformedItem);
+          
+        } catch (menuError) {
+          console.error(`Error fetching menu ${menuId}:`, menuError);
+        }
+      }
+    }
+    
+    console.log('Final result:', {
+      totalItems: allMenuItems.length,
+      itemsWithNames: allMenuItems.filter(item => item.menuItemName !== 'Unknown Item').length
+    });
+    console.log('=== End Clean Collections ===');
+    
+    res.status(200).json({
+      collections: allMenuItems
+    });
+    
+  } catch (error) {
+    console.error('Error in getUserCollections:', error);
+    res.status(500).json({ 
+      message: 'Error fetching collections', 
+      error: error.message 
+    });
+  }
+},
 
   // Create a new collection (and handle adding to "My Favorites" if menuItemId is provided)
   createCollection: async (req, res) => {
@@ -249,6 +326,42 @@ const userController = {
       res.status(500).json({ message: 'Error removing menu from collection', error: error.message });
     }
   },
+
+// update: Remove menu item from any collection (simple removal)
+removeMenuItemSimple: async (req, res) => {
+  const { userId, menuItemId } = req.params;
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    let menuFound = false;
+    let collectionName = '';
+
+    // Find and remove the menu item from any collection
+    user.collections.forEach(collection => {
+      const menuIndex = collection.menus.indexOf(menuItemId);
+      if (menuIndex > -1) {
+        collection.menus.splice(menuIndex, 1);
+        menuFound = true;
+        collectionName = collection.name || 'My Favorites';
+      }
+    });
+
+    if (!menuFound) {
+      return res.status(404).json({ message: 'Menu item not found in any collection' });
+    }
+
+    await user.save();
+    res.status(200).json({ 
+      message: `Menu removed from "${collectionName}" collection successfully` 
+    });
+  } catch (error) {
+    console.error('Error removing menu item:', error);
+    res.status(500).json({ message: 'Error removing menu item', error: error.message });
+  }
+},
 
   // Delete a collection
   deleteCollection: async (req, res) => {
