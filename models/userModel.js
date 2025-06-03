@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true }, // In a real app, hash this!
   profilePicture: { type: String, default: 'https://placehold.co/100x100/FFD700/000000?text=User' },
   bio: { type: String, default: '' },
+  lastLogin: { type: Date, default: null },
   collections: [
   {
     name: { type: String, required: true },

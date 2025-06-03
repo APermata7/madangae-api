@@ -40,6 +40,8 @@ const seedDatabase = async () => {
       password: userPassword,
       bio: 'Food enthusiast and home cook.',
       profilePicture: 'https://placehold.co/100x100/FFD700/000000?text=JD',
+      createdAt: new Date(), // sekarang
+      lastLogin: new Date(), // misal login hari ini
     });
     console.log('Regular user created:', regularUser.email);
 

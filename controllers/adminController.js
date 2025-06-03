@@ -1,30 +1,78 @@
 // controllers/adminController.js
 const Admin = require('../models/adminModel');
-const Menu = require('../models/menuModel'); // Required for dashboard stats
-const User = require('../models/userModel'); // Required for dashboard stats
+const Menu = require('../models/menuModel');
+const User = require('../models/userModel');
+const mongoose = require('mongoose');
 
 const adminController = {
-  // Get dashboard stats
   getDashboardStats: async (req, res) => {
     try {
-      const totalMenus = await Menu.countDocuments();
-      const totalUsers = await User.countDocuments();
-      // For simplicity, new menus today and active users are mock data
-      const newMenusToday = Math.floor(Math.random() * 5); // Simulate 0-4 new menus
-      const activeUsers = Math.floor(Math.random() * 2000) + 1000; // Simulate 1000-3000 active users
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
 
-      const latestActivity = [
-        { id: 'a1', type: 'menu_added', description: 'Nasi Goreng Seafood ditambahkan', date: '2025-05-24' },
-        { id: 'a2', type: 'menu_edited', description: 'Resep Rendang Daging diperbarui', date: '2025-05-23' },
-        { id: 'a3', type: 'user_registered', description: 'Pengguna baru terdaftar', date: '2025-05-22' },
-      ];
+      // Total menus
+      const totalMenus = await Menu.countDocuments();
+
+      // New menus today
+      const newMenusToday = await Menu.countDocuments({ createdAt: { $gte: todayStart } });
+
+      // Total users
+      const totalUsers = await User.countDocuments();
+
+      // Active users in last 7 days (assuming User has 'lastLogin' field)
+      const activeUsers = await User.countDocuments({ lastLogin: { $gte: weekAgo } });
+
+      // Latest activity: combine last 5 menu changes + last 5 user registrations, sort by date desc
+      // For simplicity, fetching separately then merge:
+      const recentMenusAdded = await Menu.find({}, 'name createdAt')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+
+      const recentUsersRegistered = await User.find({}, 'name createdAt')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+
+      // Build unified latestActivity array
+      const latestActivity = [];
+
+      recentMenusAdded.forEach(menu => {
+        latestActivity.push({
+          id: menu._id.toString(),
+          type: 'menu_added',
+          description: `${menu.name} ditambahkan`,
+          date: menu.createdAt,
+        });
+      });
+
+      recentUsersRegistered.forEach(user => {
+        latestActivity.push({
+          id: user._id.toString(),
+          type: 'user_registered',
+          description: `Pengguna baru terdaftar: ${user.name}`,
+          date: user.createdAt,
+        });
+      });
+
+      // Sort by date desc and take top 5
+      latestActivity.sort((a, b) => b.date - a.date);
+      const latestActivityTop5 = latestActivity.slice(0, 5);
+
+      // Format dates to ISO string or other desired format
+      const latestActivityFormatted = latestActivityTop5.map(item => ({
+        ...item,
+        date: item.date.toISOString().split('T')[0], // 'YYYY-MM-DD'
+      }));
 
       res.status(200).json({
         totalMenus,
         newMenusToday,
         totalUsers,
         activeUsers,
-        latestActivity
+        latestActivity: latestActivityFormatted,
       });
     } catch (error) {
       res.status(500).json({ message: 'Error fetching dashboard stats', error: error.message });
