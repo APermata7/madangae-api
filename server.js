@@ -41,16 +41,21 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// CSRF protection (with cookie)
-app.use(csrf({
+// Import routes
+const adminRoutes = require('./routes/adminRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+const userRoutes = require('./routes/userRoutes');
+
+// CSRF protection khusus admin
+const adminCsrfProtection = csrf({
   cookie: {
     httpOnly: true,
     sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production' ? true : false
   }
-}));
+});
 
-// CSRF token endpoint
+// CSRF token endpoint khusus admin (harus sebelum middleware CSRF)
 app.get('/api/admin/csrf-token', (req, res) => {
   res.cookie('XSRF-TOKEN', req.csrfToken(), {
     secure: process.env.NODE_ENV === 'production' ? true : false,
@@ -60,12 +65,10 @@ app.get('/api/admin/csrf-token', (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
-// Routes
-const adminRoutes = require('./routes/adminRoutes');
-const menuRoutes = require('./routes/menuRoutes');
-const userRoutes = require('./routes/userRoutes');
+// Admin routes dengan CSRF
+app.use('/api/admin', adminCsrfProtection, adminRoutes);
 
-app.use('/api/admin', adminRoutes);
+// Public routes tanpa CSRF
 app.use('/api/menus', menuRoutes);
 app.use('/api/users', userRoutes);
 
@@ -90,6 +93,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Server start
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

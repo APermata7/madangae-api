@@ -1,7 +1,6 @@
 // controllers/userController.js
 const User = require('../models/userModel');
 const Menu = require('../models/menuModel'); // Ensure Menu model is available for population
-const Collection = require('../models/Collection'); // Assuming your Collection model path
 const bcrypt = require('bcryptjs'); // For password hashing
 const jwt = require('jsonwebtoken'); // For JWT tokens
 
@@ -9,38 +8,52 @@ const userController = {
   // Add signup and login methods directly into the userController object
   signup: async (req, res) => {
     try {
-      const { username, email, password } = req.body;
+      console.log('Signup body:', req.body); // Debug: cek body masuk
 
-      // 1. Check if user already exists
+      const { username, name, email, password } = req.body;
+
+      // Validasi field wajib
+      if (!username || !name || !email || !password) {
+        return res.status(400).json({ message: 'All fields are required' });
+      }
+
+      // Cek user existing
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({ message: 'User with this email already exists' });
       }
 
-      // 2. Hash password
-      const hashedPassword = await bcrypt.hash(password, 10); // 10 is salt rounds
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-      // 3. Create new user
+      // Simpan user baru
       const newUser = new User({
         username,
+        name,
         email,
         password: hashedPassword
       });
       await newUser.save();
 
-      // 4. Generate JWT token
+      // Pastikan JWT_SECRET terisi
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET not defined in environment variables');
+      }
+
+      // Generate token
       const token = jwt.sign(
         { userId: newUser._id, role: 'user' },
         process.env.JWT_SECRET,
-        { expiresIn: '1h' } // Token expires in 1 hour
+        { expiresIn: '1h' }
       );
 
-      // 5. Send success response
+      // Respon sukses
       res.status(201).json({
         message: 'User registered successfully',
         user: {
           _id: newUser._id,
           username: newUser.username,
+          name: newUser.name,
           email: newUser.email
         },
         token
@@ -48,34 +61,38 @@ const userController = {
 
     } catch (error) {
       console.error('Signup error:', error);
-      res.status(500).json({ message: 'Internal server error during signup' });
+      res.status(500).json({ message: 'Internal server error during signup', error: error.message });
     }
   },
 
+  // ✅ Login user
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
 
-      // 1. Check if user exists
       const user = await User.findOne({ email });
       if (!user) {
         return res.status(400).json({ message: 'Invalid credentials' });
       }
 
-      // 2. Compare password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(400).json({ message: 'Invalid credentials' });
       }
 
-      // 3. Generate JWT token
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET not defined in environment variables');
+      }
+
       const token = jwt.sign(
         { userId: user._id, role: 'user' },
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
 
-      // 4. Send success response
       res.status(200).json({
         message: 'Logged in successfully',
         user: {
@@ -88,7 +105,7 @@ const userController = {
 
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({ message: 'Internal server error during login' });
+      res.status(500).json({ message: 'Internal server error during login', error: error.message });
     }
   },
 
@@ -129,94 +146,94 @@ const userController = {
 
   /// Get user collections
   getUserCollections: async (req, res) => {
-  try {
-    console.log('=== getUserCollections Clean ===');
-    console.log('UserID:', req.params.userId);
-    
-    // Get user WITHOUT populate first
-    const user = await User.findById(req.params.userId);
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    try {
+      console.log('=== getUserCollections Clean ===');
+      console.log('UserID:', req.params.userId);
 
-    console.log('User found, collections count:', user.collections.length);
-    
-    const allMenuItems = [];
-    
-    for (let collection of user.collections) {
-      console.log(`Processing collection:`, {
-        collectionId: collection._id,
-        name: collection.name,
-        menusCount: collection.menus.length
-      });
-      
-      // Manual fetch each menu by ID
-      for (let menuId of collection.menus) {
-        console.log(`Fetching menu:`, menuId);
-        
-        try {
-          const menu = await Menu.findById(menuId);
-          
-          if (!menu) {
-            console.log(`Menu ${menuId} not found, skipping`);
-            continue;
+      // Get user WITHOUT populate first
+      const user = await User.findById(req.params.userId);
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      console.log('User found, collections count:', user.collections.length);
+
+      const allMenuItems = [];
+
+      for (let collection of user.collections) {
+        console.log(`Processing collection:`, {
+          collectionId: collection._id,
+          name: collection.name,
+          menusCount: collection.menus.length
+        });
+
+        // Manual fetch each menu by ID
+        for (let menuId of collection.menus) {
+          console.log(`Fetching menu:`, menuId);
+
+          try {
+            const menu = await Menu.findById(menuId);
+
+            if (!menu) {
+              console.log(`Menu ${menuId} not found, skipping`);
+              continue;
+            }
+
+            console.log(`Menu found:`, {
+              name: menu.name,
+              category: menu.category,
+              hasImage: !!menu.imageUrl,
+              hasDescription: !!menu.description
+            });
+
+            // Transform menu data - NO PRICE
+            const transformedItem = {
+              _id: menu._id,
+              menuItemId: menu._id,
+              menuItemName: menu.name || 'Unknown Item',
+              menuItemDescription: menu.description || 'No description available.',
+              menuItemCategory: menu.category || 'N/A',
+              menuItemImage: menu.imageUrl || '',
+              rating: Number(menu.rating) || 0,
+              ingredients: menu.ingredients || [],
+              tutorial: menu.tutorial || []
+            };
+
+            console.log(`Transformed:`, {
+              name: transformedItem.menuItemName,
+              category: transformedItem.menuItemCategory,
+              hasImage: !!transformedItem.menuItemImage,
+              ingredientsCount: transformedItem.ingredients.length,
+              tutorialSteps: transformedItem.tutorial.length
+            });
+
+            allMenuItems.push(transformedItem);
+
+          } catch (menuError) {
+            console.error(`Error fetching menu ${menuId}:`, menuError);
           }
-          
-          console.log(`Menu found:`, {
-            name: menu.name,
-            category: menu.category,
-            hasImage: !!menu.imageUrl,
-            hasDescription: !!menu.description
-          });
-          
-          // Transform menu data - NO PRICE
-          const transformedItem = {
-            _id: menu._id,
-            menuItemId: menu._id,
-            menuItemName: menu.name || 'Unknown Item',
-            menuItemDescription: menu.description || 'No description available.',
-            menuItemCategory: menu.category || 'N/A',
-            menuItemImage: menu.imageUrl || '',
-            rating: Number(menu.rating) || 0,
-            ingredients: menu.ingredients || [],
-            tutorial: menu.tutorial || []
-          };
-          
-          console.log(`Transformed:`, {
-            name: transformedItem.menuItemName,
-            category: transformedItem.menuItemCategory,
-            hasImage: !!transformedItem.menuItemImage,
-            ingredientsCount: transformedItem.ingredients.length,
-            tutorialSteps: transformedItem.tutorial.length
-          });
-          
-          allMenuItems.push(transformedItem);
-          
-        } catch (menuError) {
-          console.error(`Error fetching menu ${menuId}:`, menuError);
         }
       }
+
+      console.log('Final result:', {
+        totalItems: allMenuItems.length,
+        itemsWithNames: allMenuItems.filter(item => item.menuItemName !== 'Unknown Item').length
+      });
+      console.log('=== End Clean Collections ===');
+
+      res.status(200).json({
+        collections: allMenuItems
+      });
+
+    } catch (error) {
+      console.error('Error in getUserCollections:', error);
+      res.status(500).json({
+        message: 'Error fetching collections',
+        error: error.message
+      });
     }
-    
-    console.log('Final result:', {
-      totalItems: allMenuItems.length,
-      itemsWithNames: allMenuItems.filter(item => item.menuItemName !== 'Unknown Item').length
-    });
-    console.log('=== End Clean Collections ===');
-    
-    res.status(200).json({
-      collections: allMenuItems
-    });
-    
-  } catch (error) {
-    console.error('Error in getUserCollections:', error);
-    res.status(500).json({ 
-      message: 'Error fetching collections', 
-      error: error.message 
-    });
-  }
-},
+  },
 
   // Create a new collection (and handle adding to "My Favorites" if menuItemId is provided)
   createCollection: async (req, res) => {
@@ -316,7 +333,7 @@ const userController = {
 
       // Ensure menuId is in the array before pulling
       if (!collection.menus.includes(menuId)) { // <--- CHANGE THIS LINE from 'menuItems' to 'menus'
-          return res.status(404).json({ message: 'Menu item not found in this collection' });
+        return res.status(404).json({ message: 'Menu item not found in this collection' });
       }
 
       collection.menus.pull(menuId); // <--- CHANGE THIS LINE from 'menuItems' to 'menus'
@@ -327,41 +344,41 @@ const userController = {
     }
   },
 
-// update: Remove menu item from any collection (simple removal)
-removeMenuItemSimple: async (req, res) => {
-  const { userId, menuItemId } = req.params;
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    let menuFound = false;
-    let collectionName = '';
-
-    // Find and remove the menu item from any collection
-    user.collections.forEach(collection => {
-      const menuIndex = collection.menus.indexOf(menuItemId);
-      if (menuIndex > -1) {
-        collection.menus.splice(menuIndex, 1);
-        menuFound = true;
-        collectionName = collection.name || 'My Favorites';
+  // update: Remove menu item from any collection (simple removal)
+  removeMenuItemSimple: async (req, res) => {
+    const { userId, menuItemId } = req.params;
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
       }
-    });
 
-    if (!menuFound) {
-      return res.status(404).json({ message: 'Menu item not found in any collection' });
+      let menuFound = false;
+      let collectionName = '';
+
+      // Find and remove the menu item from any collection
+      user.collections.forEach(collection => {
+        const menuIndex = collection.menus.indexOf(menuItemId);
+        if (menuIndex > -1) {
+          collection.menus.splice(menuIndex, 1);
+          menuFound = true;
+          collectionName = collection.name || 'My Favorites';
+        }
+      });
+
+      if (!menuFound) {
+        return res.status(404).json({ message: 'Menu item not found in any collection' });
+      }
+
+      await user.save();
+      res.status(200).json({
+        message: `Menu removed from "${collectionName}" collection successfully`
+      });
+    } catch (error) {
+      console.error('Error removing menu item:', error);
+      res.status(500).json({ message: 'Error removing menu item', error: error.message });
     }
-
-    await user.save();
-    res.status(200).json({ 
-      message: `Menu removed from "${collectionName}" collection successfully` 
-    });
-  } catch (error) {
-    console.error('Error removing menu item:', error);
-    res.status(500).json({ message: 'Error removing menu item', error: error.message });
-  }
-},
+  },
 
   // Delete a collection
   deleteCollection: async (req, res) => {
