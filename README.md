@@ -3,6 +3,8 @@
 Madangae adalah platform web berbasis ReactJS & Express.js yang menyediakan informasi menu makanan, resep, dan tutorial pembuatan. Sistem ini terdiri dari:
 
 - **madangae-api** : Backend REST API.
+- **madangae-user** : Frontend untuk user umum.
+- **madangae-admin** : Frontend untuk admin.
 
 ---
 
@@ -26,4 +28,4 @@ REST API berbasis Express.js:
 ```bash
 cd madangae-api
 npm install
-npm run dev
+npm start
