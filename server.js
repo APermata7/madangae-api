@@ -1,52 +1,96 @@
-// server.js
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const connectDB = require('./config/db'); // Import DB connection
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+const connectDB = require('./config/db');
 
-// Import routes
-const menuRoutes = require('./routes/menuRoutes');
-const userRoutes = require('./routes/userRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-
-// Connect to Database
+// Connect to database
 connectDB();
 
-// Express App Setup
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors()); // Enable CORS for all origins
-app.use(express.json()); // Body parser for JSON requests
+// CORS setup
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+  exposedHeaders: ['x-csrf-token']
+}));
 
-// --- News Data (Static for this demo, can be dynamic in a real app) ---
-const newsData = [
-  { id: 'news1', title: 'Tren Makanan Sehat 2025: Lebih Banyak Tanpa Daging', date: '2025-05-20', snippet: 'Temukan berbagai tren makanan sehat yang akan populer di tahun 2025, dengan fokus pada opsi nabati dan bahan-bahan lokal.' },
-  { id: 'news2', title: 'Festival Kuliner Nusantara Kembali Hadir!', date: '2025-05-15', snippet: 'Jangan lewatkan festival kuliner terbesar yang menampilkan hidangan dari seluruh Indonesia, dari Sabang sampai Merauke.' },
-  { id: 'news3', title: 'Tips Memasak Hemat di Akhir Bulan', date: '2025-05-10', snippet: 'Pelajari cara membuat hidangan lezat dan bergizi dengan anggaran terbatas, cocok untuk akhir bulan.' },
-  { id: 'news4', title: 'Manfaat Rempah-rempah dalam Masakan Indonesia', date: '2025-05-05', snippet: 'Gali lebih dalam tentang khasiat kesehatan dan cita rasa unik yang ditawarkan rempah-rempah khas Indonesia.' },
-];
+// Security middleware
+app.use(helmet());
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(cookieParser());
+app.use(mongoSanitize());
+app.use(xss());
+app.use(hpp());
 
-app.get('/api/news', (req, res) => {
-  res.status(200).json(newsData);
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again later'
+});
+app.use('/api', limiter);
+
+// CSRF protection (with cookie)
+app.use(csrf({
+  cookie: {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production' ? true : false
+  }
+}));
+
+// CSRF token endpoint
+app.get('/api/admin/csrf-token', (req, res) => {
+  res.cookie('XSRF-TOKEN', req.csrfToken(), {
+    secure: process.env.NODE_ENV === 'production' ? true : false,
+    sameSite: 'strict',
+    httpOnly: false
+  });
+  res.json({ csrfToken: req.csrfToken() });
 });
 
-// Use routes
-app.use('/api/menus', menuRoutes); // User-facing menu routes
-app.use('/api/users', userRoutes); // User-specific routes
-app.use('/api/admin', adminRoutes); // Admin-specific routes
+// Routes
+const adminRoutes = require('./routes/adminRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+const userRoutes = require('./routes/userRoutes');
 
-// --- Error Handling Middleware ---
+app.use('/api/admin', adminRoutes);
+app.use('/api/menus', menuRoutes);
+app.use('/api/users', userRoutes);
+
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send('Something broke!');
+
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({
+      status: 'error',
+      message: 'Invalid CSRF token'
+    });
+  }
+
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+
+  res.status(statusCode).json({
+    status: 'error',
+    message,
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
-// Start Server
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Access User FE at: http://localhost:3000 (after running user FE)`);
-  console.log(`Access Admin FE at: http://localhost:3001 (after running admin FE)`);
-  console.log(`Backend API at: http://localhost:${PORT}/api`);
 });

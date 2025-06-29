@@ -34,14 +34,16 @@ const seedDatabase = async () => {
 
     // Create a sample regular user
     const userPassword = await bcrypt.hash('user123', 10); // Hash password
+    // In the regular user creation part, add username:
     const regularUser = await User.create({
+      username: 'johndoe', // Add this line
       name: 'John Doe',
       email: 'john.doe@example.com',
       password: userPassword,
       bio: 'Food enthusiast and home cook.',
       profilePicture: 'https://placehold.co/100x100/FFD700/000000?text=JD',
-      createdAt: new Date(), // sekarang
-      lastLogin: new Date(), // misal login hari ini
+      createdAt: new Date(),
+      lastLogin: new Date(),
     });
     console.log('Regular user created:', regularUser.email);
 

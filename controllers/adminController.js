@@ -25,7 +25,6 @@ const adminController = {
       const activeUsers = await User.countDocuments({ lastLogin: { $gte: weekAgo } });
 
       // Latest activity: combine last 5 menu changes + last 5 user registrations, sort by date desc
-      // For simplicity, fetching separately then merge:
       const recentMenusAdded = await Menu.find({}, 'name createdAt')
         .sort({ createdAt: -1 })
         .limit(5)
@@ -68,47 +67,104 @@ const adminController = {
       }));
 
       res.status(200).json({
-        totalMenus,
-        newMenusToday,
-        totalUsers,
-        activeUsers,
-        latestActivity: latestActivityFormatted,
+        success: true,
+        data: {
+          totalMenus,
+          newMenusToday,
+          totalUsers,
+          activeUsers,
+          latestActivity: latestActivityFormatted,
+        }
       });
     } catch (error) {
-      res.status(500).json({ message: 'Error fetching dashboard stats', error: error.message });
+      console.error('Dashboard error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Error fetching dashboard stats',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   },
 
-  // Get admin profile
   getAdminProfile: async (req, res) => {
     try {
-      // In a real app, adminId would come from authenticated session (req.user.id)
-      const admin = await Admin.findById(req.params.adminId);
+      // Get adminId from authenticated user (req.user.id from auth middleware)
+      const adminId = req.user.id;
+      const admin = await Admin.findById(adminId);
+      
       if (!admin) {
-        return res.status(404).json({ message: 'Admin not found' });
+        return res.status(404).json({ 
+          success: false,
+          message: 'Admin not found' 
+        });
       }
-      // Exclude password for security
-      const { password, ...adminWithoutPassword } = admin._doc;
-      res.status(200).json(adminWithoutPassword);
+
+      // Exclude sensitive data
+      const { password, __v, ...adminData } = admin._doc;
+      
+      res.status(200).json({
+        success: true,
+        data: adminData
+      });
     } catch (error) {
-      res.status(500).json({ message: 'Error fetching admin profile', error: error.message });
+      console.error('Profile fetch error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching admin profile',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   },
 
-  // Update admin profile
   updateAdminProfile: async (req, res) => {
     try {
-      // In a real app, adminId would come from authenticated session (req.user.id)
-      const updatedAdmin = await Admin.findByIdAndUpdate(req.params.adminId, req.body, { new: true, runValidators: true });
-      if (!updatedAdmin) {
-        return res.status(404).json({ message: 'Admin not found' });
+      const adminId = req.user.id;
+      const updates = req.body;
+
+      // Prevent role change unless by super admin
+      if (updates.role && req.user.role !== 'Super Admin') {
+        delete updates.role;
       }
-      const { password, ...adminWithoutPassword } = updatedAdmin._doc;
-      res.status(200).json({ message: 'Admin profile updated successfully', admin: adminWithoutPassword });
+
+      // Prevent password update via this endpoint
+      if (updates.password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Use the change password endpoint to update password'
+        });
+      }
+
+      const updatedAdmin = await Admin.findByIdAndUpdate(
+        adminId,
+        updates,
+        { 
+          new: true,
+          runValidators: true,
+          select: '-password -__v' // Exclude sensitive fields
+        }
+      );
+
+      if (!updatedAdmin) {
+        return res.status(404).json({
+          success: false,
+          message: 'Admin not found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: updatedAdmin
+      });
     } catch (error) {
-      res.status(400).json({ message: 'Error updating admin profile', error: error.message });
+      console.error('Profile update error:', error);
+      res.status(400).json({
+        success: false,
+        message: 'Error updating admin profile',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
-  },
+  }
 };
 
 module.exports = adminController;
