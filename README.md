@@ -1,15 +1,29 @@
-# 🍽️ Madangae API
+# 🍽️ Madangae Web Platform
 
-REST API untuk platform Madangae, menyediakan layanan CRUD menu makanan, manajemen user, serta autentikasi berbasis JWT.
+Madangae adalah platform web berbasis ReactJS & Express.js yang menyediakan informasi menu makanan, resep, dan tutorial pembuatan. Sistem ini terdiri dari:
 
-## 📦 Fitur
-- CRUD data menu makanan
-- Registrasi & Login user menggunakan JWT
-- Role-based access control untuk User & Admin
-- Proteksi keamanan API:
-  - Input validation (`express-validator`)
-  - XSS protection (`xss-clean`)
-  - NoSQL injection protection (`mongo-sanitize`)
-  - Rate limiting (`express-rate-limit`)
-  - CORS & Error handling
-  - Middleware CSRF (belum aktif di semua endpoint)
+- **madangae-api** : Backend REST API.
+
+---
+
+## 📌 Deskripsi Aplikasi  
+
+### ⚙️ madangae-api  
+REST API berbasis Express.js:
+- CRUD data menu & user.
+- Autentikasi JWT.
+- Proteksi CSRF.
+- Validasi input.
+- Rate limit & XSS prevention.
+- MongoDB sebagai database.
+
+---
+
+## 📦 Instalasi & Jalankan  
+
+### 1️⃣ madangae-api
+
+```bash
+cd madangae-api
+npm install
+npm run dev
