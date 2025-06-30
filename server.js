@@ -10,6 +10,7 @@ const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 const connectDB = require('./config/db');
+const session = require('express-session');
 
 // Connect to database
 connectDB();
@@ -29,6 +30,9 @@ app.use(helmet());
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
+
+app.use(session({ secret: 'temp-secret', resave: false, saveUninitialized: true, cookie: { secure: false } }));
+
 app.use(mongoSanitize());
 app.use(xss());
 app.use(hpp());
@@ -56,7 +60,7 @@ const adminCsrfProtection = csrf({
 });
 
 // CSRF token endpoint khusus admin (harus sebelum middleware CSRF)
-app.get('/api/admin/csrf-token', (req, res) => {
+app.get('/api/admin/csrf-token',  adminCsrfProtection, (req, res) => {
   res.cookie('XSRF-TOKEN', req.csrfToken(), {
     secure: process.env.NODE_ENV === 'production' ? true : false,
     sameSite: 'strict',

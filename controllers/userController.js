@@ -17,7 +17,7 @@ const userController = {
         return res.status(400).json({ message: 'All fields are required' });
       }
 
-      // Cek user existing
+      // Cek user sudah ada
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({ message: 'User with this email already exists' });
@@ -31,7 +31,9 @@ const userController = {
         username,
         name,
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        createdAt: new Date(),
+        lastLogin: new Date()
       });
       await newUser.save();
 
@@ -72,33 +74,41 @@ const userController = {
       if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required' });
       }
-
+      
+      //cek user berdasar email
       const user = await User.findOne({ email });
       if (!user) {
-        return res.status(400).json({ message: 'Invalid credentials' });
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
 
+      //cek berdasar password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        return res.status(400).json({ message: 'Invalid credentials' });
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
 
       if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET not defined in environment variables');
       }
 
+      //buat jwt token
       const token = jwt.sign(
         { userId: user._id, role: 'user' },
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
 
+        // Update last login
+      await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
+
       res.status(200).json({
         message: 'Logged in successfully',
         user: {
           _id: user._id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          bio: user.bio,
+          profilePicture: user.profilePicture
         },
         token
       });
