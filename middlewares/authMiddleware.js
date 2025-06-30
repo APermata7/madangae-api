@@ -1,6 +1,7 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
-module.exports = (req, res, next) => {
+// Middleware verifikasi token
+exports.verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -10,9 +11,18 @@ module.exports = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // decoded = { id, role, ... }
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(403).json({ message: "Invalid or expired token." });
+  }
+};
+
+// Middleware cek role Admin
+exports.isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    return res.status(403).json({ message: "Access denied. Admin only." });
   }
 };
